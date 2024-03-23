@@ -1,0 +1,8 @@
+[package]
+name = "wasix-test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[package.metadata.dist]
+dist = false
