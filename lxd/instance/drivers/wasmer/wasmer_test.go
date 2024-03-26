@@ -1349,3 +1349,215 @@ func TestModuleDeserialize(t *testing.T) {
 	_, err = NewInstance(moduleAgain, NewImportObject())
 	assert.NoError(t, err)
 }
+
+// TableType tests
+
+func TestTableType(t *testing.T) {
+	valueType := NewValueType(I32)
+
+	var minimum uint32 = 1
+	var maximum uint32 = 7
+	limits, err := NewLimits(minimum, maximum)
+	assert.NoError(t, err)
+
+	tableType := NewTableType(valueType, limits)
+
+	valueTypeAgain := tableType.ValueType()
+	assert.Equal(t, valueTypeAgain.Kind(), I32)
+
+	limitsAgain := tableType.Limits()
+	assert.Equal(t, limitsAgain.Minimum(), minimum)
+	assert.Equal(t, limitsAgain.Maximum(), maximum)
+}
+
+func TestTableTypeIntoExternTypeAndBack(t *testing.T) {
+	valueType := NewValueType(I32)
+
+	var minimum uint32 = 1
+	var maximum uint32 = 7
+	limits, err := NewLimits(minimum, maximum)
+	assert.NoError(t, err)
+
+	tableType := NewTableType(valueType, limits)
+	externType := tableType.IntoExternType()
+	assert.Equal(t, externType.Kind(), TABLE)
+
+	tableTypeAgain := externType.IntoTableType()
+
+	valueTypeAgain := tableTypeAgain.ValueType()
+	assert.Equal(t, valueTypeAgain.Kind(), I32)
+
+	limitsAgain := tableTypeAgain.Limits()
+	assert.Equal(t, limitsAgain.Minimum(), minimum)
+	assert.Equal(t, limitsAgain.Maximum(), maximum)
+}
+
+// Target tests
+
+func TestTarget(t *testing.T) {
+	triple, err := NewTriple("x86_64-apple-darwin")
+	assert.NoError(t, err)
+
+	cpuFeatures := NewCpuFeatures()
+	cpuFeatures.Add("sse2")
+
+	target := NewTarget(triple, cpuFeatures)
+
+	_ = target
+}
+
+// Trap tests
+
+func TestTrap(t *testing.T) {
+	engine := NewEngine()
+	store := NewStore(engine)
+	message := "Hello"
+	trap := NewTrap(store, message)
+
+	assert.NotNil(t, trap)
+	assert.Equal(t, message, trap.Message())
+	assert.Nil(t, trap.Origin())
+	assert.NotNil(t, trap.Trace())
+	assert.Len(t, trap.Trace().frames, 0)
+}
+
+// ValueType tests
+
+func TestValueKindToString(t *testing.T) {
+	assert.Equal(t, I32.String(), "i32")
+	assert.Equal(t, I64.String(), "i64")
+	assert.Equal(t, F32.String(), "f32")
+	assert.Equal(t, F64.String(), "f64")
+	assert.Equal(t, AnyRef.String(), "anyref")
+	assert.Equal(t, FuncRef.String(), "funcref")
+}
+
+func TestValueKindIsNumber(t *testing.T) {
+	assert.Equal(t, I32.IsNumber(), true)
+	assert.Equal(t, I64.IsNumber(), true)
+	assert.Equal(t, F32.IsNumber(), true)
+	assert.Equal(t, F64.IsNumber(), true)
+	assert.Equal(t, AnyRef.IsNumber(), false)
+	assert.Equal(t, FuncRef.IsNumber(), false)
+}
+
+func TestValueKindIsReference(t *testing.T) {
+	assert.Equal(t, I32.IsReference(), false)
+	assert.Equal(t, I64.IsReference(), false)
+	assert.Equal(t, F32.IsReference(), false)
+	assert.Equal(t, F64.IsReference(), false)
+	assert.Equal(t, AnyRef.IsReference(), true)
+	assert.Equal(t, FuncRef.IsReference(), true)
+}
+
+func TestValueTypeKind(t *testing.T) {
+	assert.Equal(t, NewValueType(I32).Kind(), I32)
+	assert.Equal(t, NewValueType(I64).Kind(), I64)
+	assert.Equal(t, NewValueType(F32).Kind(), F32)
+	assert.Equal(t, NewValueType(F64).Kind(), F64)
+	assert.Equal(t, NewValueType(AnyRef).Kind(), AnyRef)
+	assert.Equal(t, NewValueType(FuncRef).Kind(), FuncRef)
+}
+
+func TestValueTypeToVecToList(t *testing.T) {
+	valueTypeList := []*ValueType{
+		NewValueType(I32),
+		NewValueType(I64),
+		NewValueType(F32),
+	}
+	valueTypeVec := toValueTypeVec(valueTypeList)
+	assert.Equal(t, int(valueTypeVec.size), 3)
+
+	actualValueTypeList := toValueTypeList(&valueTypeVec, nil)
+	assert.Equal(t, len(valueTypeList), len(actualValueTypeList))
+	for nth, value := range valueTypeList {
+		assert.Equal(t, value.Kind(), actualValueTypeList[nth].Kind())
+	}
+}
+
+func TestNewValueTypes(t *testing.T) {
+	valueTypes := NewValueTypes(I32, I64, F32, F64)
+	assert.Equal(t, len(valueTypes), 4)
+	assert.Equal(t, valueTypes[0].Kind(), I32)
+	assert.Equal(t, valueTypes[1].Kind(), I64)
+	assert.Equal(t, valueTypes[2].Kind(), F32)
+	assert.Equal(t, valueTypes[3].Kind(), F64)
+}
+
+// WAT tests
+
+func TestWat2Wasm(t *testing.T) {
+	wasm, err := Wat2Wasm("(module)")
+	assert.NoError(t, err)
+	assert.Equal(t, wasm, []byte("\x00asm\x01\x00\x00\x00"))
+}
+
+func TestWasm2Wasm(t *testing.T) {
+	wasm, err := Wat2Wasm(string([]byte("\x00asm\x01\x00\x00\x00")))
+	assert.NoError(t, err)
+	assert.Equal(t, wasm, []byte("\x00asm\x01\x00\x00\x00"))
+}
+
+func TestBadWat2Wasm(t *testing.T) {
+	_, err := Wat2Wasm("(module")
+	assert.EqualError(t, err, "expected `)`\n     --> <anon>:1:8\n      |\n    1 | (module\n      |        ^")
+}
+
+// WASI tests
+
+func TestWasiVersion(t *testing.T) {
+	assert.Equal(t, WASI_VERSION_LATEST.String(), "__latest__")
+	assert.Equal(t, WASI_VERSION_SNAPSHOT0.String(), "wasi_unstable")
+	assert.Equal(t, WASI_VERSION_SNAPSHOT1.String(), "wasi_snapshot_preview1")
+	assert.Equal(t, WASI_VERSION_INVALID.String(), "__unknown__")
+}
+
+func TestWasiGetVersion(t *testing.T) {
+	engine := NewEngine()
+	store := NewStore(engine)
+	module, err := NewModule(store, testGetBytes("wasi.wasm"))
+	assert.NoError(t, err)
+
+	assert.Equal(t, GetWasiVersion(module), WASI_VERSION_SNAPSHOT1)
+}
+
+// TODO: FAILING TEST
+// Rework the Go wrapper to handle WASI logic like in: https://github.com/wasmerio/wasmer/blob/master/lib/c-api/examples/wasi.c
+// idea: or maybe it's because we haven't compile `wasi.rs` with right cargo target (we need to use `cargo wasix build` instead of rustc with `--target wasm32-wasi`)
+func TestWasiWithCapturedStdout(t *testing.T) {
+	engine := NewEngine()
+	store := NewStore(engine)
+	module, err := NewModule(store, testGetBytes("wasi.wasm"))
+	assert.NoError(t, err)
+
+	wasiEnv, err := NewWasiStateBuilder("test-program").
+		Argument("--foo").
+		Environment("ABC", "DEF").
+		Environment("X", "ZY").
+		MapDirectory("the_host_current_directory", ".").
+		CaptureStdout().
+		Finalize(store)
+	assert.NoError(t, err)
+
+	importObject, err := wasiEnv.GenerateImportObject(store, module)
+	assert.NoError(t, err)
+
+	instance, err := NewInstance(module, importObject)
+	assert.NoError(t, err)
+
+	start, err := instance.Exports.GetWasiStartFunction()
+	assert.NoError(t, err)
+
+	start()
+
+	stdout := string(wasiEnv.ReadStdout())
+
+	assert.Equal(
+		t,
+		stdout,
+		"Found program name: `test-program`\n"+
+			"Found 1 arguments: --foo\n"+
+			"Found 2 environment variables: ABC=DEF, X=ZY\n"+
+			"Found 1 preopened directories: DirEntry(\"/the_host_current_directory\")\n",
+	)
+}
