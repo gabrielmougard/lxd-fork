@@ -802,3 +802,223 @@ func TestGlobalReadWriteConstant(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int32(42), value)
 }
+
+// GlobalType tests
+
+func TestGlobalMutability(t *testing.T) {
+	assert.Equal(t, IMMUTABLE.String(), "const")
+	assert.Equal(t, MUTABLE.String(), "var")
+}
+
+func TestGlobalType(t *testing.T) {
+	valueType := NewValueType(I32)
+	globalType := NewGlobalType(valueType, MUTABLE)
+	assert.Equal(t, globalType.ValueType().Kind(), I32)
+	assert.Equal(t, globalType.Mutability(), MUTABLE)
+}
+
+func TestGlobalTypeIntoExternTypeAndBack(t *testing.T) {
+	valueType := NewValueType(I32)
+
+	globalType := NewGlobalType(valueType, MUTABLE)
+	externType := globalType.IntoExternType()
+	assert.Equal(t, externType.Kind(), GLOBAL)
+
+	globalTypeAgain := externType.IntoGlobalType()
+	assert.Equal(t, globalTypeAgain.ValueType().Kind(), I32)
+	assert.Equal(t, globalTypeAgain.Mutability(), MUTABLE)
+}
+
+// Instance tests
+
+func TestInstance(t *testing.T) {
+	engine := NewEngine()
+	store := NewStore(engine)
+	module, err := NewModule(store, []byte("(module)"))
+	assert.NoError(t, err)
+
+	_, err = NewInstance(module, NewImportObject())
+	assert.NoError(t, err)
+}
+
+func TestInstanceExports(t *testing.T) {
+	engine := NewEngine()
+	store := NewStore(engine)
+	module, err := NewModule(
+		store,
+		[]byte(`
+			(module
+			  (func (export "function") (param i32 i64))
+			  (global (export "global") i32 (i32.const 7))
+			  (table (export "table") 0 funcref)
+			  (memory (export "memory") 1))
+		`),
+	)
+	assert.NoError(t, err)
+
+	instance, err := NewInstance(module, NewImportObject())
+	assert.NoError(t, err)
+
+	extern, err := instance.Exports.Get("function")
+	assert.NoError(t, err)
+	assert.Equal(t, extern.Kind(), FUNCTION)
+
+	function, err := instance.Exports.GetFunction("function")
+	assert.NoError(t, err)
+	assert.NotNil(t, function)
+
+	global, err := instance.Exports.GetGlobal("global")
+	assert.NoError(t, err)
+	assert.NotNil(t, global)
+
+	table, err := instance.Exports.GetTable("table")
+	assert.NoError(t, err)
+	assert.NotNil(t, table)
+
+	memory, err := instance.Exports.GetMemory("memory")
+	assert.NoError(t, err)
+	assert.NotNil(t, memory)
+}
+
+func TestInstanceMissingImports(t *testing.T) {
+	engine := NewEngine()
+	store := NewStore(engine)
+	module, err := NewModule(
+		store,
+		[]byte(`
+			(module
+			  (func (import "missing" "function"))
+			  (func (import "exists" "function")))
+		`),
+	)
+	assert.NoError(t, err)
+
+	function := NewFunction(
+		store,
+		NewFunctionType(NewValueTypes(), NewValueTypes()),
+		func(args []Value) ([]Value, error) {
+			return []Value{}, nil
+		},
+	)
+
+	importObject := NewImportObject()
+	importObject.Register(
+		"exists",
+		map[string]IntoExtern{
+			"function": function,
+		},
+	)
+
+	_, err = NewInstance(module, importObject)
+	assert.Error(t, err)
+}
+
+func TestInstanceTraps(t *testing.T) {
+	engine := NewEngine()
+	store := NewStore(engine)
+	module, err := NewModule(
+		store,
+		[]byte(`
+			(module
+			  (start $start_f)
+			  (type $start_t (func))
+			  (func $start_f (type $start_t)
+			    unreachable))
+		`),
+	)
+	assert.NoError(t, err)
+
+	_, err = NewInstance(module, NewImportObject())
+	assert.Error(t, err)
+	assert.Equal(t, "unreachable", err.Error())
+}
+
+// ImportType tests
+
+func TestImportTypeForFunctionType(t *testing.T) {
+	params := NewValueTypes(I32, I64)
+	results := NewValueTypes(F32)
+	functionType := NewFunctionType(params, results)
+
+	module := "foo"
+	name := "bar"
+	importType := NewImportType(module, name, functionType)
+	assert.Equal(t, importType.Module(), module)
+	assert.Equal(t, importType.Name(), name)
+
+	externType := importType.Type()
+	assert.Equal(t, externType.Kind(), FUNCTION)
+
+	functionTypeAgain := externType.IntoFunctionType()
+	assert.Equal(t, len(functionTypeAgain.Params()), len(params))
+	assert.Equal(t, len(functionTypeAgain.Results()), len(results))
+}
+
+func TestImportTypeForGlobalType(t *testing.T) {
+	valueType := NewValueType(I32)
+	globalType := NewGlobalType(valueType, MUTABLE)
+
+	module := "foo"
+	name := "bar"
+	importType := NewImportType(module, name, globalType)
+	assert.Equal(t, importType.Module(), module)
+	assert.Equal(t, importType.Name(), name)
+
+	externType := importType.Type()
+	assert.Equal(t, externType.Kind(), GLOBAL)
+
+	globalTypeAgain := externType.IntoGlobalType()
+	assert.Equal(t, globalTypeAgain.ValueType().Kind(), I32)
+	assert.Equal(t, globalTypeAgain.Mutability(), MUTABLE)
+}
+
+func TestImportTypeForTableType(t *testing.T) {
+	valueType := NewValueType(I32)
+
+	var minimum uint32 = 1
+	var maximum uint32 = 7
+	limits, err := NewLimits(minimum, maximum)
+	assert.NoError(t, err)
+
+	tableType := NewTableType(valueType, limits)
+
+	module := "foo"
+	name := "bar"
+	importType := NewImportType(module, name, tableType)
+	assert.Equal(t, importType.Module(), module)
+	assert.Equal(t, importType.Name(), name)
+
+	externType := importType.Type()
+	assert.Equal(t, externType.Kind(), TABLE)
+
+	tableTypeAgain := externType.IntoTableType()
+	valueTypeAgain := tableTypeAgain.ValueType()
+	assert.Equal(t, valueTypeAgain.Kind(), I32)
+
+	limitsAgain := tableTypeAgain.Limits()
+	assert.Equal(t, limitsAgain.Minimum(), minimum)
+	assert.Equal(t, limitsAgain.Maximum(), maximum)
+}
+
+func TestImportTypeForMemoryType(t *testing.T) {
+	var minimum uint32 = 1
+	var maximum uint32 = 7
+	limits, err := NewLimits(minimum, maximum)
+	assert.NoError(t, err)
+
+	memoryType := NewMemoryType(limits)
+
+	module := "foo"
+	name := "bar"
+	importType := NewImportType(module, name, memoryType)
+	assert.Equal(t, importType.Module(), module)
+	assert.Equal(t, importType.Name(), name)
+
+	externType := importType.Type()
+	assert.Equal(t, externType.Kind(), MEMORY)
+
+	memoryTypeAgain := externType.IntoMemoryType()
+	limitsAgain := memoryTypeAgain.Limits()
+	assert.Equal(t, limitsAgain.Minimum(), minimum)
+	assert.Equal(t, limitsAgain.Maximum(), maximum)
+}
