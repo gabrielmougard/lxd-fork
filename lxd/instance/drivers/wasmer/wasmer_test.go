@@ -26,7 +26,7 @@ func testGetInstance(t *testing.T) *Instance {
 	module, err := NewModule(store, testGetBytes("tests.wasm"))
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	return instance
@@ -50,7 +50,7 @@ func TestConfig(t *testing.T) {
 	module, err := NewModule(store, testGetBytes("tests.wasm"))
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	sum, err := instance.Exports.GetFunction("sum")
@@ -75,7 +75,7 @@ func TestConfigForMetering(t *testing.T) {
 	module, err := NewModule(store, testGetBytes("tests.wasm"))
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	sum, err := instance.Exports.GetFunction("sum")
@@ -168,7 +168,7 @@ func TestConfig_AllCombinations(t *testing.T) {
 				module, err := NewModule(store, testGetBytes("tests.wasm"))
 				assert.NoError(t, err)
 
-				instance, err := NewInstance(module, NewImportObject())
+				instance, err := NewInstance(module, NewImportObject(), nil)
 				assert.NoError(t, err)
 
 				sum, err := instance.Exports.GetFunction("sum")
@@ -189,7 +189,7 @@ func testEngine(t *testing.T, engine *Engine) {
 	module, err := NewModule(store, testGetBytes("tests.wasm"))
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	sum, err := instance.Exports.GetFunction("sum")
@@ -244,7 +244,7 @@ func TestRawFunction(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	sum, err := instance.Exports.GetRawFunction("sum")
@@ -271,7 +271,7 @@ func TestFunctionCallReturnZeroValue(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	test, err := instance.Exports.GetFunction("test")
@@ -298,7 +298,7 @@ func TestFunctionCallReturnMultipleValues(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	swap, err := instance.Exports.GetFunction("swap")
@@ -464,7 +464,7 @@ func TestHostFunction(t *testing.T) {
 		},
 	)
 
-	instance, err := NewInstance(module, importObject)
+	instance, err := NewInstance(module, importObject, nil)
 	assert.NoError(t, err)
 
 	addOne, err := instance.Exports.GetFunction("add_one")
@@ -510,7 +510,7 @@ func TestHostFunction_WithI64(t *testing.T) {
 		},
 	)
 
-	instance, err := NewInstance(module, importObject)
+	instance, err := NewInstance(module, importObject, nil)
 	assert.NoError(t, err)
 
 	addOne, err := instance.Exports.GetFunction("add_one")
@@ -570,7 +570,7 @@ func TestHostFunctionWithEnv(t *testing.T) {
 		},
 	)
 
-	instance, err := NewInstance(module, importObject)
+	instance, err := NewInstance(module, importObject, nil)
 	assert.NoError(t, err)
 
 	environment.instance = instance
@@ -653,7 +653,7 @@ func TestHostFunctionTrap(t *testing.T) {
 		},
 	)
 
-	instance, err := NewInstance(module, importObject)
+	instance, err := NewInstance(module, importObject, nil)
 	assert.NoError(t, err)
 
 	addOne, err := instance.Exports.GetFunction("add_one")
@@ -710,7 +710,7 @@ func testGetGlobalInstance(t *testing.T) *Instance {
 	module, err := NewModule(store, TestBytes)
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	return instance
@@ -837,7 +837,7 @@ func TestInstance(t *testing.T) {
 	module, err := NewModule(store, []byte("(module)"))
 	assert.NoError(t, err)
 
-	_, err = NewInstance(module, NewImportObject())
+	_, err = NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 }
 
@@ -856,7 +856,7 @@ func TestInstanceExports(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, NewImportObject())
+	instance, err := NewInstance(module, NewImportObject(), nil)
 	assert.NoError(t, err)
 
 	extern, err := instance.Exports.Get("function")
@@ -909,7 +909,7 @@ func TestInstanceMissingImports(t *testing.T) {
 		},
 	)
 
-	_, err = NewInstance(module, importObject)
+	_, err = NewInstance(module, importObject, nil)
 	assert.Error(t, err)
 }
 
@@ -928,7 +928,7 @@ func TestInstanceTraps(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	_, err = NewInstance(module, NewImportObject())
+	_, err = NewInstance(module, NewImportObject(), nil)
 	assert.Error(t, err)
 	assert.Equal(t, "unreachable", err.Error())
 }
@@ -1346,7 +1346,7 @@ func TestModuleDeserialize(t *testing.T) {
 	assert.Equal(t, len(functionType.Params()), 2)
 	assert.Equal(t, len(functionType.Results()), 0)
 
-	_, err = NewInstance(moduleAgain, NewImportObject())
+	_, err = NewInstance(moduleAgain, NewImportObject(), nil)
 	assert.NoError(t, err)
 }
 
@@ -1515,7 +1515,7 @@ func TestWasiVersion(t *testing.T) {
 func TestWasiGetVersion(t *testing.T) {
 	engine := NewEngine()
 	store := NewStore(engine)
-	module, err := NewModule(store, testGetBytes("wasi.wasm"))
+	module, err := NewModule(store, testGetBytes("wasix-test/target/wasm32-wasi/release/wasix-test.wasm"))
 	assert.NoError(t, err)
 
 	assert.Equal(t, GetWasiVersion(module), WASI_VERSION_SNAPSHOT1)
@@ -1523,11 +1523,13 @@ func TestWasiGetVersion(t *testing.T) {
 
 // TODO: FAILING TEST
 // Rework the Go wrapper to handle WASI logic like in: https://github.com/wasmerio/wasmer/blob/master/lib/c-api/examples/wasi.c
-// idea: or maybe it's because we haven't compile `wasi.rs` with right cargo target (we need to use `cargo wasix build` instead of rustc with `--target wasm32-wasi`)
+// update: works with `cargo build --target wasm32-wasi` but my stdout/stderr read returns nothing.
+// update: not working with `cargo wasix build [--release]`.. I have `Missing import: `wasi_snapshot_preview1`.`args_get`. I'm able to run it using the `wasmer` CLI though.
+// something is wrong with the Go wrapper.
 func TestWasiWithCapturedStdout(t *testing.T) {
 	engine := NewEngine()
 	store := NewStore(engine)
-	module, err := NewModule(store, testGetBytes("wasi.wasm"))
+	module, err := NewModule(store, testGetBytes("wasix-test/wasm32-wasi/main.wasi.wasm"))
 	assert.NoError(t, err)
 
 	wasiEnv, err := NewWasiStateBuilder("test-program").
@@ -1542,13 +1544,14 @@ func TestWasiWithCapturedStdout(t *testing.T) {
 	importObject, err := wasiEnv.GenerateImportObject(store, module)
 	assert.NoError(t, err)
 
-	instance, err := NewInstance(module, importObject)
+	instance, err := NewInstance(module, importObject, wasiEnv)
 	assert.NoError(t, err)
 
 	start, err := instance.Exports.GetWasiStartFunction()
 	assert.NoError(t, err)
 
-	start()
+	err = CallFunction(start)
+	assert.NoError(t, err)
 
 	stdout := string(wasiEnv.ReadStdout())
 
